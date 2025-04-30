@@ -149,7 +149,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       const data = await response.json();
-      loadAuthDataFromToken(data.token);
+      loadAuthDataFromToken(data.accessToken);
+        localStorage.setItem("refreshToken", data.refreshToken);
 
       toast.success("Signed in successfully!");
       return true;
@@ -208,3 +209,4 @@ export const useAuth = () => {
   }
   return context;
 };
+

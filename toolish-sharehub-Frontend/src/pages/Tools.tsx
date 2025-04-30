@@ -186,7 +186,7 @@ const Tools = () => {
                     variant="secondary"
                     onClick={() =>
                       addItem({
-                        id: parseInt(tool._id, 10),
+                        id: tool._id,
                         name: tool.name,
                         price: tool.price,
                         category: tool.category,

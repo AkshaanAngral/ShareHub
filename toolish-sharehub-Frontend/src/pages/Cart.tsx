@@ -1,6 +1,13 @@
-import React, { useState } from "react";
+declare global {
+  interface Window {
+    Razorpay: any;
+  }
+}
+
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ShoppingCart, Trash2, ChevronLeft, Plus, Minus, ArrowRight, CreditCard, Shield } from "lucide-react";
+import { ShoppingCart, Trash2, ChevronLeft, Plus, Minus, CreditCard } from "lucide-react";
+import axios from "axios";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,7 +34,21 @@ const Cart = () => {
   const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const handleCheckout = () => {
+  // --- FIX: Declare and calculate serviceFee and total ---
+  const serviceFee = subtotal * 0.1;
+  const total = subtotal + serviceFee;
+
+  // Ensure Razorpay script is loaded
+  useEffect(() => {
+    if (!window.Razorpay) {
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.async = true;
+      document.body.appendChild(script);
+    }
+  }, []);
+
+  const handleRazorpayPayment = async () => {
     if (!isLoggedIn) {
       toast({
         title: "Login required",
@@ -39,20 +60,91 @@ const Cart = () => {
 
     setIsProcessing(true);
 
-    // Simulate processing
-    setTimeout(() => {
-      setIsProcessing(false);
-      toast({
-        title: "Order placed successfully!",
-        description: `Your order for ${items.length} items has been placed.`,
-      });
-      clearCart();
-      navigate("/dashboard");
-    }, 1500);
-  };
+    try {
+      // 1. Create order on backend
+      const token = localStorage.getItem('token');
+const { data } = await axios.post(
+  '/api/payment/create-order',
+  {},
+  {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  }
+);
 
-  const serviceFee = subtotal * 0.1; // 10% service fee
-  const total = subtotal + serviceFee;
+      const { order, key, paymentId } = data;
+
+      // 2. Check if Razorpay is loaded
+      if (!window.Razorpay) {
+        toast({
+          title: "Payment failed",
+          description: "Payment gateway is not loaded. Please refresh the page.",
+          variant: "destructive"
+        });
+        setIsProcessing(false);
+        return;
+      }
+
+      // 3. Configure Razorpay options
+      const options = {
+        key,
+        amount: order.amount, // Amount in paise from backend
+        currency: order.currency,
+        name: "Toolish ShareHub",
+        description: "Tool rental payment",
+        order_id: order.id,
+        handler: async function (response: any) {
+          try {
+            // Verify payment on backend
+            await axios.post("/api/payment/verify", {
+              razorpayOrderId: response.razorpay_order_id,
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpaySignature: response.razorpay_signature,
+              paymentId
+            }, { withCredentials: true });
+
+            toast({
+              title: "Payment successful!",
+              description: "Your order has been placed.",
+            });
+            clearCart();
+            navigate("/dashboard");
+          } catch (err: any) {
+            toast({
+              title: "Payment verification failed",
+              description: err.response?.data?.message || "Something went wrong",
+              variant: "destructive"
+            });
+          }
+        },
+        prefill: {},
+        theme: { color: "#3399cc" },
+        modal: {
+          ondismiss: function () {
+            toast({
+              title: "Payment cancelled",
+              description: "You closed the payment window",
+            });
+            setIsProcessing(false);
+          }
+        }
+      };
+
+      // 4. Create and open Razorpay instance
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+    } catch (err: any) {
+      console.error("Razorpay error:", err);
+      toast({
+        title: "Payment failed",
+        description: err.response?.data?.message || "Something went wrong",
+        variant: "destructive"
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -184,13 +276,13 @@ const Cart = () => {
               </CardContent>
               <CardFooter>
                 <Button
-                  variant="primary"
-                  onClick={handleCheckout}
+                  variant="default"
+                  onClick={handleRazorpayPayment}
                   disabled={isProcessing}
                   className="w-full"
                 >
-                  {isProcessing ? "Processing..." : "Proceed to Checkout"}
-                  <ArrowRight className="ml-2 h-4 w-4" />
+                  {isProcessing ? "Processing..." : "Pay with Razorpay"}
+                  <CreditCard className="ml-2 h-4 w-4" />
                 </Button>
               </CardFooter>
             </Card>

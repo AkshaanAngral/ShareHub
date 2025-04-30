@@ -6,6 +6,7 @@ const categoryRoutes = require("./Category.route");
 const toolRoutes = require("./Tool.route"); // Import the tool route
 const cartRoutes = require('./Cart.route');
 const chatRoutes = require("./Chat.route");
+const paymentRoutes = require("./Payment.route");
 
 
 // Use the routes
@@ -14,5 +15,6 @@ router.use("/categories", categoryRoutes);
 router.use("/tools", toolRoutes); // Use the tool route
 router.use('/cart', cartRoutes);
 router.use("/chat", chatRoutes);
+router.use("/payment", paymentRoutes);
 
 module.exports = router;

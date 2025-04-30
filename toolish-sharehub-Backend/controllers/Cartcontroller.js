@@ -10,8 +10,8 @@ const getCart = async (req, res) => {
     }
     res.json(cart);
   } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server Error');
+    console.error("CartController getCart error:", err);
+    res.status(500).json({ message: 'Server Error', error: err.message });
   }
 };
 
@@ -19,7 +19,7 @@ const addItemToCart = async (req, res) => {
   try {
     const { toolId, quantity } = req.body;
 
-    // Check if the tool exists
+    // Validate tool existence
     const tool = await Tool.findById(toolId);
     if (!tool) {
       return res.status(404).json({ message: 'Tool not found' });
@@ -28,142 +28,151 @@ const addItemToCart = async (req, res) => {
     let cart = await Cart.findOne({ userId: req.user.id });
 
     if (!cart) {
-      // Create a new cart
+      // Create new cart with initial item and total
       cart = new Cart({
-        userId: req.user.id,
+        userId: req.user._id,
         items: [{ toolId, quantity }],
         total: tool.price * quantity
       });
     } else {
-      // Cart exists, check if the item already exists
+      // Cart exists, check if item exists
       const itemIndex = cart.items.findIndex(item => item.toolId.toString() === toolId);
 
       if (itemIndex > -1) {
-        // Item exists, update the quantity
-        let item = cart.items[itemIndex];
-        item.quantity += quantity;
-        cart.items[itemIndex] = item;
+        cart.items[itemIndex].quantity += quantity;
       } else {
-        // Item does not exist, add to cart
         cart.items.push({ toolId, quantity });
       }
-      cart.total = cart.items.reduce((total, item) => total + (item.toolId.price * item.quantity), 0);
+
+      // Fetch tool prices for all items to calculate total
+      const toolIds = cart.items.map(item => item.toolId);
+      const tools = await Tool.find({ _id: { $in: toolIds } });
+      const toolPriceMap = {};
+      tools.forEach(t => {
+        toolPriceMap[t._id.toString()] = t.price;
+      });
+
+      cart.total = cart.items.reduce((total, item) => {
+        const price = toolPriceMap[item.toolId.toString()] || 0;
+        return total + price * item.quantity;
+      }, 0);
     }
 
     await cart.save();
+
+    // Populate items.toolId for response
     cart = await Cart.findOne({ userId: req.user.id }).populate('items.toolId', 'name price');
+
     res.json(cart);
   } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server Error');
+    console.error("CartController addItemToCart error:", err);
+    res.status(500).json({ message: 'Server Error', error: err.message });
   }
 };
 
 const updateCartItem = async (req, res) => {
-    try {
-        const {
-            toolId
-        } = req.params;
-        const {
-            quantity
-        } = req.body;
+  try {
+    const { toolId } = req.params;
+    const { quantity } = req.body;
 
-        let cart = await Cart.findOne({
-            userId: req.user.id
-        });
-
-        if (!cart) {
-            return res.status(404).json({
-                msg: "Cart not found"
-            });
-        }
-
-        const itemIndex = cart.items.findIndex(item => item.toolId == toolId)
-
-        if (itemIndex === -1) {
-            return res.status(400).json({
-                msg: 'Item not found in cart'
-            })
-        }
-
-        cart.items[itemIndex].quantity = quantity
-
-        cart.total = cart.items.reduce((total, item) => total + (item.toolId.price * item.quantity), 0);
-
-        await cart.save();
-
-        res.json(cart);
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
+    let cart = await Cart.findOne({ userId: req.user.id });
+    if (!cart) {
+      return res.status(404).json({ message: "Cart not found" });
     }
+
+    const itemIndex = cart.items.findIndex(item => item.toolId.toString() === toolId);
+    if (itemIndex === -1) {
+      return res.status(400).json({ message: 'Item not found in cart' });
+    }
+
+    cart.items[itemIndex].quantity = quantity;
+
+    // Recalculate total
+    const toolIds = cart.items.map(item => item.toolId);
+    const tools = await Tool.find({ _id: { $in: toolIds } });
+    const toolPriceMap = {};
+    tools.forEach(t => {
+      toolPriceMap[t._id.toString()] = t.price;
+    });
+
+    cart.total = cart.items.reduce((total, item) => {
+      const price = toolPriceMap[item.toolId.toString()] || 0;
+      return total + price * item.quantity;
+    }, 0);
+
+    await cart.save();
+
+    cart = await Cart.findOne({ userId: req.user.id }).populate('items.toolId', 'name price');
+    res.json(cart);
+  } catch (err) {
+    console.error("CartController updateCartItem error:", err);
+    res.status(500).json({ message: 'Server Error', error: err.message });
+  }
 };
 
 const removeCartItem = async (req, res) => {
-    try {
-        const {
-            toolId
-        } = req.params;
+  try {
+    const { toolId } = req.params;
 
-        let cart = await Cart.findOne({
-            userId: req.user.id
-        });
-
-        if (!cart) {
-            return res.status(404).json({
-                msg: "Cart not found"
-            });
-        }
-
-        const itemIndex = cart.items.findIndex(item => item.toolId == toolId)
-
-        if (itemIndex === -1) {
-            return res.status(400).json({
-                msg: 'Item not found in cart'
-            })
-        }
-
-        cart.items.splice(itemIndex, 1)
-
-        cart.total = cart.items.reduce((total, item) => total + (item.toolId.price * item.quantity), 0);
-
-        await cart.save();
-
-        res.json(cart);
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
+    let cart = await Cart.findOne({ userId: req.user.id });
+    if (!cart) {
+      return res.status(404).json({ message: "Cart not found" });
     }
+
+    const itemIndex = cart.items.findIndex(item => item.toolId.toString() === toolId);
+    if (itemIndex === -1) {
+      return res.status(400).json({ message: 'Item not found in cart' });
+    }
+
+    cart.items.splice(itemIndex, 1);
+
+    // Recalculate total
+    const toolIds = cart.items.map(item => item.toolId);
+    const tools = await Tool.find({ _id: { $in: toolIds } });
+    const toolPriceMap = {};
+    tools.forEach(t => {
+      toolPriceMap[t._id.toString()] = t.price;
+    });
+
+    cart.total = cart.items.reduce((total, item) => {
+      const price = toolPriceMap[item.toolId.toString()] || 0;
+      return total + price * item.quantity;
+    }, 0);
+
+    await cart.save();
+
+    cart = await Cart.findOne({ userId: req.user.id }).populate('items.toolId', 'name price');
+    res.json(cart);
+  } catch (err) {
+    console.error("CartController removeCartItem error:", err);
+    res.status(500).json({ message: 'Server Error', error: err.message });
+  }
 };
 
 const clearCart = async (req, res) => {
-    try {
-        let cart = await Cart.findOne({
-            userId: req.user.id
-        });
-
-        if (!cart) {
-            return res.status(404).json({
-                msg: "Cart not found"
-            });
-        }
-
-        cart.items = []
-        cart.total = 0
-
-        await cart.save();
-
-        res.json(cart);
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
+  try {
+    let cart = await Cart.findOne({ userId: req.user.id });
+    if (!cart) {
+      return res.status(404).json({ message: "Cart not found" });
     }
+
+    cart.items = [];
+    cart.total = 0;
+
+    await cart.save();
+
+    cart = await Cart.findOne({ userId: req.user.id }).populate('items.toolId', 'name price');
+    res.json(cart);
+  } catch (err) {
+    console.error("CartController clearCart error:", err);
+    res.status(500).json({ message: 'Server Error', error: err.message });
+  }
 };
 
 module.exports = {
-    getCart,
-    addItemToCart,
-    updateCartItem,
-    removeCartItem,
-    clearCart
+  getCart,
+  addItemToCart,
+  updateCartItem,
+  removeCartItem,
+  clearCart
 };

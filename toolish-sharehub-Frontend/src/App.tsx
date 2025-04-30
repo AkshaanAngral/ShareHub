@@ -41,7 +41,9 @@ const App = () => {
                 <ChatProvider>
                   <Toaster />
                   <Sonner />
-                  <AppContent /> {/* Now this is where useAuth() is safely used */}
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <AppContent />
+                  </Suspense>
                 </ChatProvider>
               </ToolProvider>
             </SocketProvider>
@@ -53,46 +55,42 @@ const App = () => {
 };
 
 const AppContent = () => {
-  const { isLoggedIn } = useAuth(); // ✅ Safe inside AuthProvider
+  const { isLoggedIn } = useAuth();
 
   return (
     <div className="flex flex-col min-h-screen">
       <Navbar />
       <main className="flex-1">
-        <Suspense fallback={<LoadingSpinner />}>
-          <Routes>
-            <Route path="/welcome" element={<LoadingPage />} />
-            <Route path="/" element={<Index />} />
-            <Route path="/tools" element={<Tools />} />
-            <Route path="/tools/add" element={<AddTool />} />
-            <Route path="/tools/:toolId" element={<ToolDetail />} />
-            <Route path="/how-it-works" element={<HowItWorks />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/cart" element={<Cart />} />
-            <Route path="/dashboard" element={
-              <PrivateRoute>
-                <Dashboard />
-              </PrivateRoute>
-            } />
-            <Route path="/chat" element={
-              <PrivateRoute>
-                <Chat />
-              </PrivateRoute>
-            } />
-            <Route path="/signin" element={
-              isLoggedIn ? <Navigate to="/" /> : <SignIn />
-            } />
-            <Route path="/register" element={
-              isLoggedIn ? <Navigate to="/" /> : <Register />
-            } />
-            <Route path="/admin" element={
-              <PrivateRoute requireAdmin={true}>
-                <AdminPanel />
-              </PrivateRoute>
-            } />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Suspense>
+        <Routes>
+          <Route path="/welcome" element={<LoadingPage />} />
+          <Route path="/" element={<Index />} />
+          <Route path="/tools" element={<Tools />} />
+          <Route path="/tools/add" element={<AddTool />} />
+          <Route path="/tools/:toolId" element={<ToolDetail />} />
+          <Route path="/how-it-works" element={<HowItWorks />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/cart" element={<Cart />} />
+          <Route path="/dashboard" element={
+            <PrivateRoute>
+              <Dashboard />
+            </PrivateRoute>
+          } />
+          <Route path="/chat" element={
+            <PrivateRoute>
+              <Chat />
+            </PrivateRoute>
+          } />
+          <Route path="/signin" element={
+            isLoggedIn ? <Navigate to="/" /> : <SignIn />} />
+          <Route path="/register" element={
+            isLoggedIn ? <Navigate to="/" /> : <Register />} />
+          <Route path="/admin" element={
+            <PrivateRoute requireAdmin={true}>
+              <AdminPanel />
+            </PrivateRoute>
+          } />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
       </main>
     </div>
   );

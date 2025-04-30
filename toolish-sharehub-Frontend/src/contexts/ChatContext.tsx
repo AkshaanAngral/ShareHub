@@ -69,15 +69,18 @@ import React, {
         {
           transports: ["websocket"],
           withCredentials: true,
+          auth: {
+            token: localStorage.getItem("token"), // Retrieve the JWT token
+          },
         }
       );
       setSocket(newSocket);
-  
-      // Clean up function to disconnect the socket when the component unmounts
+    
       return () => {
-        newSocket.disconnect();
+        newSocket.disconnect(); // Disconnect on unmount
       };
-    }, []); // Empty dependency array ensures this effect runs only once
+    }, []);
+     // Empty dependency array ensures this effect runs only once
   
     // useEffect to load conversations from API on mount
     useEffect(() => {

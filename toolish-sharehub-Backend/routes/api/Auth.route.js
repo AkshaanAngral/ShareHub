@@ -5,7 +5,7 @@ require("../../passport"); // Google OAuth strategy config
 
 const register = require("../../controllers/auth/register");
 const login = require("../../controllers/auth/login");
-
+const refreshTokenController = require('../../controllers/auth/refreshTokenController');
 const router = express.Router();
 
 // 🟢 Email/Password Authentication
@@ -32,7 +32,7 @@ router.get(
     };
 
     const token = jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, {
-      expiresIn: "1h",
+      expiresIn: "7d",
     });
 
     // Redirect to frontend with the JWT token
@@ -72,5 +72,5 @@ router.get("/logout", async (req, res) => {
     res.redirect("http://localhost:5173/");
   });
 });
-
+router.post('/refresh', refreshTokenController);
 module.exports = router;

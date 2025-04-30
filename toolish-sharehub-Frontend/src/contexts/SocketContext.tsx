@@ -1,3 +1,4 @@
+// SocketContext.tsx
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { io, Socket } from "socket.io-client";
 import { useAuth } from "./AuthContext";
@@ -23,40 +24,41 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const { user, isLoggedIn } = useAuth();
 
   useEffect(() => {
-    // Only connect if the user is logged in
-    if (!isLoggedIn || !user) {
+    const storedToken = localStorage.getItem("token");
+    // Only connect if the user is logged in AND we have a token
+    if (!isLoggedIn || !user || !storedToken) {
       return;
     }
-
-    // Replace with your actual WebSocket server URL
+  
     const socketInstance = io("http://localhost:5000", {
-      auth: {
-        userId: user.id,
-        username: user.name || user.email
-      }
+      auth: (cb) => { // Use a function to dynamically fetch the token
+        cb({token: localStorage.getItem("token")});
+      },
+      transports: ['websocket'] // Ensure only WebSocket transport is used
     });
-
+  
     socketInstance.on("connect", () => {
       setIsConnected(true);
       console.log("Socket connected");
     });
-
+  
     socketInstance.on("disconnect", () => {
       setIsConnected(false);
       console.log("Socket disconnected");
     });
-
+  
     socketInstance.on("connect_error", (err) => {
       console.error("Connection error:", err);
       setIsConnected(false);
     });
-
+  
     setSocket(socketInstance);
-
+  
     return () => {
       socketInstance.disconnect();
     };
   }, [isLoggedIn, user]);
+  
 
   return (
     <SocketContext.Provider value={{ socket, isConnected }}>
