@@ -1,269 +1,85 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { useToast } from "@/hooks/use-toast";
+import React, { createContext, useContext, useState, useEffect } from "react";
 
 export interface CartItem {
-  id: string; // MongoDB ObjectId as string
+  id: string;
   name: string;
   price: number;
   category: string;
   condition: string;
-  quantity: number;
+  image?: string;
+  location?: string;
+  owner?: {
+    _id: string;
+    name: string;
+    rating: number;
+    responseTime: string;
+  };
+  startDate: Date;
+  endDate: Date;
+  rentalDays: number;
+  insurance: boolean;
+  subtotal: number;
+  serviceFee: number;
+  total: number;
+  address?: string;
 }
 
 interface CartContextType {
   items: CartItem[];
-  addItem: (item: Omit<CartItem, "quantity">) => Promise<void>;
-  removeItem: (id: string) => Promise<void>;
-  updateQuantity: (id: string, quantity: number) => Promise<void>;
-  clearCart: () => Promise<void>;
-  totalItems: number;
+  addItem: (item: CartItem) => void;
+  removeItem: (id: string) => void;
+  clearCart: () => void;
   subtotal: number;
+  serviceFee: number;
+  total: number;
+  updateAddress: (address: string) => void;
+  address: string;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [items, setItems] = useState<CartItem[]>([]);
-  const { toast } = useToast();
+  const [items, setItems] = useState<CartItem[]>(() => {
+    const stored = localStorage.getItem("cart-items");
+    return stored ? JSON.parse(stored, (key, value) => {
+      if (key === "startDate" || key === "endDate") return new Date(value);
+      return value;
+    }) : [];
+  });
+  const [address, setAddress] = useState(() => localStorage.getItem("cart-address") || "");
 
-  const getToken = () => localStorage.getItem("token");
-
-  // --- Error handler using res.clone() ---
-  const handleResponseError = async (res: Response) => {
-    if (!res.ok) {
-      let errorMessage = "Something went wrong";
-      try {
-        const data = await res.clone().json();
-        errorMessage = data.message || errorMessage;
-      } catch {
-        try {
-          errorMessage = await res.clone().text() || errorMessage;
-        } catch {
-          // ignore
-        }
-      }
-      throw new Error(errorMessage);
-    }
-  };
-
-  // --- Fetch cart from backend on mount ---
   useEffect(() => {
-    const fetchCart = async () => {
-      const token = getToken();
-      if (!token) return;
+    localStorage.setItem("cart-items", JSON.stringify(items));
+  }, [items]);
+  useEffect(() => {
+    localStorage.setItem("cart-address", address);
+  }, [address]);
 
-      try {
-        const res = await fetch("/api/cart", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.status === 404) {
-          setItems([]); // Cart not found is not an error, just empty
-          return;
-        }
-        await handleResponseError(res);
-        const cart = await res.json();
-        if (cart && cart.items) {
-          setItems(
-            cart.items.map((item: any) => ({
-              id: item.toolId._id,
-              name: item.toolId.name,
-              price: item.toolId.price,
-              category: item.toolId.category || "",
-              condition: item.toolId.condition || "",
-              quantity: item.quantity,
-            }))
-          );
-        }
-      } catch (error) {
-        console.error("Error fetching cart:", error);
-      }
-    };
-    fetchCart();
-  }, []);
+  const addItem = (item: CartItem) => {
+    setItems(prev =>
+      prev.some(i => i.id === item.id) ? prev : [...prev, item]
+    );
+  };
+  const removeItem = (id: string) => setItems(prev => prev.filter(i => i.id !== id));
+  const clearCart = () => setItems([]);
+  const updateAddress = (addr: string) => setAddress(addr);
 
-  // --- Add item to cart ---
-  const addItem = useCallback(
-    async (item: Omit<CartItem, "quantity">) => {
-      const token = getToken();
-      if (!token) {
-        toast({ title: "Please login to add items to cart" });
-        return;
-      }
-      try {
-        const res = await fetch("/api/cart/add", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ toolId: item.id, quantity: 1 }),
-        });
-
-        await handleResponseError(res);
-
-        const updatedCart = await res.json();
-        setItems(
-          updatedCart.items.map((item: any) => ({
-            id: item.toolId._id,
-            name: item.toolId.name,
-            price: item.toolId.price,
-            category: item.toolId.category || "",
-            condition: item.toolId.condition || "",
-            quantity: item.quantity,
-          }))
-        );
-
-        toast({
-          title: "Item added to cart",
-          description: `${item.name} has been added to your cart.`,
-        });
-      } catch (error: any) {
-        toast({ title: "Failed to add item to cart", description: error.message });
-        console.error(error);
-      }
-    },
-    [toast]
-  );
-
-  // --- Remove item from cart ---
-  const removeItem = useCallback(
-    async (id: string) => {
-      const token = getToken();
-      if (!token) {
-        toast({ title: "Please login to modify cart" });
-        return;
-      }
-      try {
-        const res = await fetch(`/api/cart/remove/${id}`, {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        await handleResponseError(res);
-
-        const updatedCart = await res.json();
-        setItems(
-          updatedCart.items.map((item: any) => ({
-            id: item.toolId._id,
-            name: item.toolId.name,
-            price: item.toolId.price,
-            category: item.toolId.category || "",
-            condition: item.toolId.condition || "",
-            quantity: item.quantity,
-          }))
-        );
-
-        toast({
-          title: "Item removed",
-          description: "The item has been removed from your cart.",
-        });
-      } catch (error: any) {
-        toast({ title: "Failed to remove item from cart", description: error.message });
-        console.error(error);
-      }
-    },
-    [toast]
-  );
-
-  // --- Update quantity ---
-  const updateQuantity = useCallback(
-    async (id: string, quantity: number) => {
-      if (quantity < 1) return;
-      const token = getToken();
-      if (!token) {
-        toast({ title: "Please login to modify cart" });
-        return;
-      }
-      try {
-        const res = await fetch(`/api/cart/update/${id}`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ quantity }),
-        });
-
-        await handleResponseError(res);
-
-        const updatedCart = await res.json();
-        setItems(
-          updatedCart.items.map((item: any) => ({
-            id: item.toolId._id,
-            name: item.toolId.name,
-            price: item.toolId.price,
-            category: item.toolId.category || "",
-            condition: item.toolId.condition || "",
-            quantity: item.quantity,
-          }))
-        );
-      } catch (error: any) {
-        toast({ title: "Failed to update cart quantity", description: error.message });
-        console.error(error);
-      }
-    },
-    [toast]
-  );
-
-  // --- Clear cart ---
-  const clearCart = useCallback(async () => {
-    const token = getToken();
-    if (!token) {
-      toast({ title: "Please login to clear cart" });
-      return;
-    }
-    try {
-      const res = await fetch("/api/cart/clear", {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      await handleResponseError(res);
-
-      const updatedCart = await res.json();
-      setItems(
-        updatedCart.items.map((item: any) => ({
-          id: item.toolId._id,
-          name: item.toolId.name,
-          price: item.toolId.price,
-          category: item.toolId.category || "",
-          condition: item.toolId.condition || "",
-          quantity: item.quantity,
-        }))
-      );
-
-      toast({ title: "Cart cleared" });
-    } catch (error: any) {
-      toast({ title: "Failed to clear cart", description: error.message });
-      console.error(error);
-    }
-  }, [toast]);
-
-  // --- Totals ---
-  const totalItems = items.reduce((total, item) => total + item.quantity, 0);
-  const subtotal = items.reduce((total, item) => total + item.price * item.quantity, 0);
+  const subtotal = items.reduce((sum, i) => sum + i.subtotal, 0);
+  const serviceFee = items.reduce((sum, i) => sum + i.serviceFee, 0);
+  const total = items.reduce((sum, i) => sum + i.total, 0);
 
   return (
-    <CartContext.Provider
-      value={{
-        items,
-        addItem,
-        removeItem,
-        updateQuantity,
-        clearCart,
-        totalItems,
-        subtotal,
-      }}
-    >
+    <CartContext.Provider value={{
+      items, addItem, removeItem, clearCart,
+      subtotal, serviceFee, total, updateAddress, address
+    }}>
       {children}
     </CartContext.Provider>
   );
 };
 
 export const useCart = () => {
-  const context = useContext(CartContext);
-  if (!context) {
-    throw new Error("useCart must be used within a CartProvider");
-  }
-  return context;
+  const ctx = useContext(CartContext);
+  if (!ctx) throw new Error("useCart must be used within CartProvider");
+  return ctx;
 };

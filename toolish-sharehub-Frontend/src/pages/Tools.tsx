@@ -41,7 +41,7 @@ const Tools = () => {
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 150]);
   const [toolsList, setToolsList] = useState<Tool[]>([]);
 
-  const { addItem } = useCart();
+  const { items } = useCart(); // Use items for cart badge
 
   useEffect(() => {
     const fetchTools = async () => {
@@ -81,7 +81,7 @@ const Tools = () => {
           <Link to="/cart" className="relative">
             <ShoppingCart className="h-6 w-6 text-muted-foreground" />
             <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs px-1 rounded-full">
-              {filteredTools.length > 0 ? filteredTools.length : 0}
+              {items.length}
             </span>
           </Link>
         </div>
@@ -181,21 +181,7 @@ const Tools = () => {
                       View Details
                     </Link>
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() =>
-                      addItem({
-                        id: tool._id,
-                        name: tool.name,
-                        price: tool.price,
-                        category: tool.category,
-                        condition: "New",
-                      })
-                    }
-                  >
-                    Add to Cart
-                  </Button>
+                  {/* Removed Add to Cart button */}
                 </div>
               </div>
             </Card>

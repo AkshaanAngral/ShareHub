@@ -11,31 +11,65 @@ const razorpay = new Razorpay({
 // Create Razorpay order
 exports.createOrder = async (req, res) => {
   try {
-    const cart = await Cart.findOne({ userId: req.user.id }).populate('items.toolId', 'price');
-    if (!cart || cart.items.length === 0) return res.status(400).json({ message: 'Cart is empty' });
-
-    const amount = Math.round(cart.total * 1.1 * 100); // Add 10% fee, convert to paise
+    const { address, items: clientItems } = req.body;
+    
+    if (!address) {
+      return res.status(400).json({ message: 'Delivery address is required' });
+    }
+    
+    if (!clientItems || !Array.isArray(clientItems) || clientItems.length === 0) {
+      return res.status(400).json({ message: 'Cart is empty' });
+    }
+    
+    // Calculate totals from the client items
+    const subtotal = clientItems.reduce((sum, item) => sum + item.subtotal, 0);
+    const total = clientItems.reduce((sum, item) => sum + item.total, 0);
+    
+    // Create or update cart in database
+    let cart = await Cart.findOne({ userId: req.user.id });
+    if (!cart) {
+      cart = new Cart({ userId: req.user.id });
+    }
+    
+    // Update cart with client items
+    cart.items = clientItems.map(item => ({
+      toolId: item.id,
+      price: item.price,
+      rentalDays: item.rentalDays || 1,
+      insurance: item.insurance || false
+    }));
+    
+    cart.total = total;
+    await cart.save();
+    
+    // Continue with Razorpay order creation
+    const amount = Math.round(total * 100); // Convert to paise
     const order = await razorpay.orders.create({
       amount,
       currency: 'INR',
       receipt: `receipt_${Date.now()}`
     });
-
+    
     const payment = new Payment({
       userId: req.user.id,
       cartId: cart._id,
       razorpayOrderId: order.id,
       amount: amount / 100,
-      currency: 'INR'
+      currency: 'INR',
+      deliveryAddress: address
     });
+    
     await payment.save();
-
     res.json({ order, key: process.env.RAZORPAY_KEY_ID, paymentId: payment._id });
-  } catch (err) {
-    res.status(500).json({ message: 'Could not create order', error: err.message });
+  }catch (err) {
+    console.error('Order creation error:', err); // Log the full error
+    res.status(500).json({ 
+      message: 'Could not create order', 
+      error: err.message,
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    });
   }
 };
-
 // Verify Razorpay payment
 exports.verifyPayment = async (req, res) => {
   try {

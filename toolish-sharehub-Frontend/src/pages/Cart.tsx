@@ -6,46 +6,57 @@ declare global {
 
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ShoppingCart, Trash2, ChevronLeft, Plus, Minus, CreditCard } from "lucide-react";
+import {
+  ShoppingCart, Trash2, ChevronLeft, CreditCard, MapPin, Calendar, Star, MessageCircle, User
+} from "lucide-react";
 import axios from "axios";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card, CardContent, CardFooter, CardHeader, CardTitle
+} from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { Textarea } from "@/components/ui/textarea";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger
 } from "@/components/ui/alert-dialog";
 
 const Cart = () => {
-  const { items, removeItem, updateQuantity, clearCart, subtotal } = useCart();
+  const { items, removeItem, clearCart, subtotal, serviceFee, total, address, updateAddress } = useCart();
   const { isLoggedIn } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // --- FIX: Declare and calculate serviceFee and total ---
-  const serviceFee = subtotal * 0.1;
-  const total = subtotal + serviceFee;
-
   // Ensure Razorpay script is loaded
   useEffect(() => {
-    if (!window.Razorpay) {
-      const script = document.createElement("script");
-      script.src = "https://checkout.razorpay.com/v1/checkout.js";
-      script.async = true;
-      document.body.appendChild(script);
-    }
+    const loadRazorpayScript = async () => {
+      // Check if script is already loaded or loading
+      if (document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]')) {
+        return;
+      }
+      
+      return new Promise<void>((resolve) => {
+        const script = document.createElement("script");
+        script.src = "https://checkout.razorpay.com/v1/checkout.js";
+        script.async = true;
+        script.onload = () => {
+          console.log("Razorpay script loaded successfully");
+          resolve();
+        };
+        script.onerror = () => {
+          console.error("Failed to load Razorpay script");
+          resolve(); // Resolve anyway to not block the app
+        };
+        document.body.appendChild(script);
+      });
+    };
+
+    loadRazorpayScript();
   }, []);
 
   const handleRazorpayPayment = async () => {
@@ -58,51 +69,90 @@ const Cart = () => {
       return;
     }
 
+    if (!address || address.trim() === "") {
+      toast({
+        title: "Address required",
+        description: "Please enter a delivery address before proceeding to payment.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Check if there are items in the cart
+    if (items.length === 0) {
+      toast({
+        title: "Empty cart",
+        description: "Please add items to your cart before checkout",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsProcessing(true);
 
     try {
+      // Verify Razorpay is available
+      if (typeof window.Razorpay === 'undefined') {
+        throw new Error("Razorpay SDK failed to load");
+      }
+
       // 1. Create order on backend
       const token = localStorage.getItem('token');
-const { data } = await axios.post(
-  '/api/payment/create-order',
-  {},
-  {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  }
-);
+      
+      // Format request data properly
+      const orderData = {
+        items: items, // Send the entire items array
+        address: address,
+        total: Number(total) // Ensure total is a number
+        
+      };
+      console.log("Order data being sent:", orderData);
+      const { data } = await axios.post(
+        '/api/payment/create-order',
+        orderData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+        }
+      );
 
+      // Extract required data from response
       const { order, key, paymentId } = data;
 
-      // 2. Check if Razorpay is loaded
-      if (!window.Razorpay) {
-        toast({
-          title: "Payment failed",
-          description: "Payment gateway is not loaded. Please refresh the page.",
-          variant: "destructive"
-        });
-        setIsProcessing(false);
-        return;
+      if (!order || !order.id || !key) {
+        throw new Error("Invalid response from server. Missing order details.");
       }
 
       // 3. Configure Razorpay options
       const options = {
         key,
-        amount: order.amount, // Amount in paise from backend
-        currency: order.currency,
+        amount: order.amount,
+        currency: order.currency || "INR",
         name: "Toolish ShareHub",
         description: "Tool rental payment",
         order_id: order.id,
-        handler: async function (response: any) {
+        handler: async function (response) {
           try {
-            // Verify payment on backend
-            await axios.post("/api/payment/verify", {
+            // Verify the payment
+            const verifyData = {
               razorpayOrderId: response.razorpay_order_id,
               razorpayPaymentId: response.razorpay_payment_id,
               razorpaySignature: response.razorpay_signature,
               paymentId
-            }, { withCredentials: true });
+            };
+
+            await axios.post(
+              "/api/payment/verify",
+              verifyData,
+              {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  'Content-Type': 'application/json'
+                },
+              }
+            );
 
             toast({
               title: "Payment successful!",
@@ -110,7 +160,8 @@ const { data } = await axios.post(
             });
             clearCart();
             navigate("/dashboard");
-          } catch (err: any) {
+          } catch (err) {
+            console.error("Payment verification error:", err);
             toast({
               title: "Payment verification failed",
               description: err.response?.data?.message || "Something went wrong",
@@ -118,7 +169,14 @@ const { data } = await axios.post(
             });
           }
         },
-        prefill: {},
+        prefill: {
+          name: "", // Can be populated if user info is available
+          email: "",
+          contact: ""
+        },
+        notes: {
+          address: address,
+        },
         theme: { color: "#3399cc" },
         modal: {
           ondismiss: function () {
@@ -133,12 +191,37 @@ const { data } = await axios.post(
 
       // 4. Create and open Razorpay instance
       const rzp = new window.Razorpay(options);
+      rzp.on('payment.failed', function (response) {
+        toast({
+          title: "Payment failed",
+          description: response.error.description || "Your payment has failed",
+          variant: "destructive"
+        });
+        setIsProcessing(false);
+      });
+      
       rzp.open();
-    } catch (err: any) {
+    } catch (err) {
       console.error("Razorpay error:", err);
+      
+      let errorMessage = "Something went wrong with payment initialization";
+      
+      if (err.response) {
+        // Server responded with an error
+        errorMessage = err.response.data?.message || 
+                      `Server error: ${err.response.status} ${err.response.statusText}`;
+        console.log("Server error details:", err.response.data);
+      } else if (err.request) {
+        // Request was made but no response
+        errorMessage = "No response from server. Please check your connection.";
+      } else if (err.message) {
+        // Something else happened
+        errorMessage = err.message;
+      }
+      
       toast({
         title: "Payment failed",
-        description: err.response?.data?.message || "Something went wrong",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
@@ -210,7 +293,6 @@ const { data } = await axios.post(
                   </AlertDialog>
                 </div>
               </CardHeader>
-
               <CardContent>
                 <ul className="divide-y">
                   {items.map((item) => (
@@ -223,23 +305,33 @@ const { data } = await axios.post(
                                 {item.name}
                               </Link>
                             </h3>
-                            <span className="font-semibold">${(item.price * item.quantity).toFixed(2)}</span>
+                            <span className="font-semibold">${item.total?.toFixed(2) || item.price.toFixed(2)}</span>
                           </div>
                           <div className="text-sm text-muted-foreground mt-1 flex justify-between">
                             <div>
                               <p>{item.category}</p>
                               <Badge variant="outline" className="mt-1">{item.condition}</Badge>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <button onClick={() => updateQuantity(item.id, item.quantity - 1)}>
-                                <Minus className="h-5 w-5" />
-                              </button>
-                              <span>{item.quantity}</span>
-                              <button onClick={() => updateQuantity(item.id, item.quantity + 1)}>
-                                <Plus className="h-5 w-5" />
-                              </button>
-                            </div>
+                            <span className="font-medium">
+                              {item.rentalDays ? `Rental: ${item.rentalDays} days` : ""}
+                            </span>
                           </div>
+                          <div className="flex items-center gap-2 mt-2 text-xs">
+                            {item.location && (<><MapPin className="h-4 w-4" /> {item.location}</>)}
+                            {item.startDate && item.endDate && (
+                              <>
+                                <Calendar className="h-4 w-4 ml-4" /> {new Date(item.startDate).toLocaleDateString()} - {new Date(item.endDate).toLocaleDateString()}
+                              </>
+                            )}
+                          </div>
+                          {item.insurance && <div className="text-green-600 mt-1">Damage Insurance Included</div>}
+                          {item.owner && (
+                            <div className="flex items-center gap-2 mt-2 text-xs">
+                              <User className="h-4 w-4" /> {item.owner.name}
+                              <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" /> {item.owner.rating}
+                              <MessageCircle className="h-4 w-4 ml-4" /> <span>Contact via chat</span>
+                            </div>
+                          )}
                         </div>
                         <Button variant="link" size="sm" className="text-destructive" onClick={() => removeItem(item.id)}>
                           Remove
@@ -251,7 +343,6 @@ const { data } = await axios.post(
               </CardContent>
             </Card>
           </div>
-
           <div className="sticky top-16">
             <Card>
               <CardHeader>
@@ -272,6 +363,14 @@ const { data } = await axios.post(
                     <span>Total</span>
                     <span>${total.toFixed(2)}</span>
                   </div>
+                </div>
+                <div className="mt-4">
+                  <label className="block mb-1 font-medium">Delivery Address</label>
+                  <Textarea
+                    placeholder="Enter delivery address"
+                    value={address}
+                    onChange={e => updateAddress(e.target.value)}
+                  />
                 </div>
               </CardContent>
               <CardFooter>

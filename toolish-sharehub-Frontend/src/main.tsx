@@ -5,8 +5,10 @@ import "./index.css";
 import { AuthProvider } from "./contexts/AuthContext";
 import { BrowserRouter } from "react-router-dom";
 import { CartProvider } from "./contexts/CartContext";
+import { ThemeProvider } from 'next-themes';
 
 createRoot(document.getElementById("root")!).render(
+<ThemeProvider attribute="class" defaultTheme="system" enableSystem>
   <React.StrictMode>
     <BrowserRouter>
       <AuthProvider>
@@ -16,4 +18,5 @@ createRoot(document.getElementById("root")!).render(
       </AuthProvider>
     </BrowserRouter>
   </React.StrictMode>
+</ThemeProvider>
 );

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input"; // Import Input component
+import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,6 +16,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -23,7 +24,6 @@ import {
   Menu,
   LogOut,
   User,
-  Settings,
   ChevronDown,
   MessageCircle,
 } from "lucide-react";
@@ -36,6 +36,12 @@ interface NavLinkProps {
   children: React.ReactNode;
   isMobile?: boolean;
   onClick?: () => void;
+}
+
+interface Conversation {
+  id: string;
+  unreadCount: number;
+  // Add other properties if needed
 }
 
 const NavLink = ({ href, children, isMobile, onClick }: NavLinkProps) => {
@@ -66,15 +72,13 @@ const Navbar = () => {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const { isLoggedIn, user, logout } = useAuth();
   const { items } = useCart();
-  const { conversations } = useChat();
+  const { conversations } = useChat() as unknown as { conversations: Conversation[] };
 
-  // Calculate total unread messages
   const unreadMessages = conversations.reduce(
-    (total, conversation) => total + conversation.unreadCount,
+    (total, conversation) => total + (conversation.unreadCount || 0),
     0
   );
-  const totalItems = items.length; // Assuming cartItems is an array of items
-
+  const totalItems = items.length;
   const isAdmin = user?.role === "admin";
 
   return (
@@ -83,7 +87,7 @@ const Navbar = () => {
         <div className="flex items-center gap-6">
           <Link to="/" className="flex items-center gap-2 font-semibold">
             <img
-              src="/logo.svg" // Replace with your logo path
+              src="/logo.svg"
               alt="ToolShare Logo"
               className="h-8"
             />
@@ -97,11 +101,8 @@ const Navbar = () => {
           </nav>
         </div>
 
-        <div className="hidden md:flex-1 md:block">
-          {" "}
-          {/* flex-1 makes it take available space */}
-          <Input type="search" placeholder="Search for tools..." />{" "}
-          {/* Use Shadcn Input component */}
+        <div className="hidden md:flex-1 md:block max-w-sm">
+          <Input type="search" placeholder="Search for tools..." />
         </div>
 
         <div className="flex items-center gap-2">
@@ -134,11 +135,16 @@ const Navbar = () => {
                   </Button>
                 </Link>
 
+                {/* Theme Toggle Button for desktop */}
+                <div className="hidden md:flex items-center">
+                  <ThemeToggle />
+                </div>
+
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="ml-2">
                       <User className="mr-2 h-4 w-4" />
-                      {user?.name }
+                      {user?.name}
                       <ChevronDown className="ml-2 h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -189,6 +195,12 @@ const Navbar = () => {
                     )}
                   </Button>
                 </Link>
+
+                {/* Theme Toggle Button for desktop */}
+                <div className="hidden md:flex items-center">
+                  <ThemeToggle />
+                </div>
+
                 <Link to="/signin">
                   <Button variant="default">Sign In</Button>
                 </Link>
@@ -197,8 +209,6 @@ const Navbar = () => {
                 </Link>
               </>
             )}
-          </div>
-          <div className="hidden md:flex items-center">
           </div>
 
           <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
@@ -218,64 +228,32 @@ const Navbar = () => {
               </SheetHeader>
 
               <div className="flex flex-col space-y-2">
-                <NavLink
-                  href="/"
-                  isMobile
-                  onClick={() => setIsSheetOpen(false)}
-                >
+                <NavLink href="/" isMobile onClick={() => setIsSheetOpen(false)}>
                   Home
                 </NavLink>
-                <NavLink
-                  href="/tools"
-                  isMobile
-                  onClick={() => setIsSheetOpen(false)}
-                >
+                <NavLink href="/tools" isMobile onClick={() => setIsSheetOpen(false)}>
                   Tools
                 </NavLink>
-                <NavLink
-                  href="/how-it-works"
-                  isMobile
-                  onClick={() => setIsSheetOpen(false)}
-                >
+                <NavLink href="/how-it-works" isMobile onClick={() => setIsSheetOpen(false)}>
                   How It Works
                 </NavLink>
-                <NavLink
-                  href="/about"
-                  isMobile
-                  onClick={() => setIsSheetOpen(false)}
-                >
+                <NavLink href="/about" isMobile onClick={() => setIsSheetOpen(false)}>
                   About
                 </NavLink>
 
                 {isLoggedIn ? (
                   <>
-                    <NavLink
-                      href="/dashboard"
-                      isMobile
-                      onClick={() => setIsSheetOpen(false)}
-                    >
+                    <NavLink href="/dashboard" isMobile onClick={() => setIsSheetOpen(false)}>
                       Dashboard
                     </NavLink>
-                    <NavLink
-                      href="/chat"
-                      isMobile
-                      onClick={() => setIsSheetOpen(false)}
-                    >
+                    <NavLink href="/chat" isMobile onClick={() => setIsSheetOpen(false)}>
                       Messages {unreadMessages > 0 && `(${unreadMessages})`}
                     </NavLink>
-                    <NavLink
-                      href="/cart"
-                      isMobile
-                      onClick={() => setIsSheetOpen(false)}
-                    >
+                    <NavLink href="/cart" isMobile onClick={() => setIsSheetOpen(false)}>
                       Cart {totalItems > 0 && `(${totalItems})`}
                     </NavLink>
                     {isAdmin && (
-                      <NavLink
-                        href="/admin"
-                        isMobile
-                        onClick={() => setIsSheetOpen(false)}
-                      >
+                      <NavLink href="/admin" isMobile onClick={() => setIsSheetOpen(false)}>
                         Admin Panel
                       </NavLink>
                     )}
@@ -293,31 +271,21 @@ const Navbar = () => {
                   </>
                 ) : (
                   <>
-                    <NavLink
-                      href="/cart"
-                      isMobile
-                      onClick={() => setIsSheetOpen(false)}
-                    >
+                    <NavLink href="/cart" isMobile onClick={() => setIsSheetOpen(false)}>
                       Cart {totalItems > 0 && `(${totalItems})`}
                     </NavLink>
-                    <NavLink
-                      href="/signin"
-                      isMobile
-                      onClick={() => setIsSheetOpen(false)}
-                    >
+                    <NavLink href="/signin" isMobile onClick={() => setIsSheetOpen(false)}>
                       Sign In
                     </NavLink>
-                    <NavLink
-                      href="/register"
-                      isMobile
-                      onClick={() => setIsSheetOpen(false)}
-                    >
+                    <NavLink href="/register" isMobile onClick={() => setIsSheetOpen(false)}>
                       Register
                     </NavLink>
                   </>
                 )}
 
+                {/* Theme Toggle Button for mobile */}
                 <div className="px-4 pt-4 pb-2">
+                  <ThemeToggle />
                 </div>
               </div>
             </SheetContent>

@@ -1,7 +1,7 @@
 // routes/api/Cart.route.js
 const express = require('express');
 const router = express.Router();
-const CartController = require('../../controllers/CartController');
+const CartController = require('../../controllers/Cartcontroller');
 const authMiddleware = require('../../middleware/authMiddleware');
 
 // @route   GET api/cart
