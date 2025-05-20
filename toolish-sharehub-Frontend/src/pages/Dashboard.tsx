@@ -1,21 +1,63 @@
-
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Wrench, AlertCircle, Calendar, DollarSign, Settings } from "lucide-react";
+import { ArrowRight, Wrench, Calendar, DollarSign, Settings } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 
 const Dashboard: React.FC = () => {
   const { userEmail } = useAuth();
+  const [userStats, setUserStats] = useState({
+    toolsListed: 0,
+    activeRentals: 0,
+    totalEarnings: 0
+  });
+  const [toolsList, setToolsList] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      setLoading(true);
+      try {
+        const response = await fetch('http://localhost:5000/api/tools/my', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          }
+        });
   
-  // Mock data - in a real app this would come from an API
-  const userStats = {
-    toolsListed: 5,
-    activeRentals: 2,
-    pendingRequests: 3,
-    totalEarnings: 340,
-  };
+        if (!response.ok) {
+          const err = await response.json();
+          throw new Error(err.message || "Failed to fetch");
+        }
+  
+        const data = await response.json();
+        const tools = data.tools || [];
+  
+        setToolsList(tools);
+  
+        setUserStats({
+          toolsListed: tools.length,
+          activeRentals: 0, // You can update this if you add rental logic
+          totalEarnings: 0  // Update if you add earnings logic
+        });
+      } catch (error) {
+        console.error("Error fetching dashboard data:", error);
+        setToolsList([]);
+        setUserStats({
+          toolsListed: 0,
+          activeRentals: 0,
+          totalEarnings: 0
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+  
+    fetchDashboardData();
+  }, []);
+  
+  
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -32,23 +74,23 @@ const Dashboard: React.FC = () => {
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </Link>
-            <Link to="/settings">
+            <Link to="/profile">
               <Button variant="outline">
                 <Settings className="mr-2 h-4 w-4" />
-                Settings
+                Profile
               </Button>
             </Link>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Tools Listed</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-between">
-                <div className="text-2xl font-bold">{userStats.toolsListed}</div>
+                <div className="text-2xl font-bold">{loading ? "..." : userStats.toolsListed}</div>
                 <Wrench className="h-5 w-5 text-primary" />
               </div>
             </CardContent>
@@ -60,20 +102,8 @@ const Dashboard: React.FC = () => {
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-between">
-                <div className="text-2xl font-bold">{userStats.activeRentals}</div>
+                <div className="text-2xl font-bold">{loading ? "..." : userStats.activeRentals}</div>
                 <Calendar className="h-5 w-5 text-primary" />
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Pending Requests</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div className="text-2xl font-bold">{userStats.pendingRequests}</div>
-                <AlertCircle className="h-5 w-5 text-primary" />
               </div>
             </CardContent>
           </Card>
@@ -84,101 +114,45 @@ const Dashboard: React.FC = () => {
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-between">
-                <div className="text-2xl font-bold">${userStats.totalEarnings}</div>
+                <div className="text-2xl font-bold">${loading ? "..." : userStats.totalEarnings}</div>
                 <DollarSign className="h-5 w-5 text-primary" />
               </div>
             </CardContent>
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Your Listed Tools</CardTitle>
-              <CardDescription>
-                Tools you've made available for rent
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
+        <Card>
+          <CardHeader>
+            <CardTitle>Your Listed Tools</CardTitle>
+            <CardDescription>
+              Tools you've made available for rent
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <p className="text-center py-4">Loading your tools...</p>
+            ) : toolsList.length > 0 ? (
               <div className="space-y-4">
-                <div className="flex justify-between items-center border-b pb-3">
-                  <div>
-                    <p className="font-medium">Electric Drill Set</p>
-                    <p className="text-muted-foreground text-sm">Listed on Mar 15, 2023</p>
+                {toolsList.slice(0, -1).map((tool, index) => (
+                  <div key={tool._id || index} className={`flex justify-between items-center ${index < toolsList.length - 1 ? 'border-b pb-3' : ''}`}>
+                    <div>
+                      <p className="font-medium">{tool.name || tool.toolName}</p>
+                      <p className="text-muted-foreground text-sm">Listed on {
+                        tool.createdAt ? new Date(tool.createdAt).toLocaleDateString() : 'N/A'
+                      }</p>
+                    </div>
+                    <p className="font-medium text-green-600">${tool.pricePerDay || tool.dailyRate || tool.price || 0}/day</p>
                   </div>
-                  <p className="font-medium text-green-600">$15/day</p>
-                </div>
-                <div className="flex justify-between items-center border-b pb-3">
-                  <div>
-                    <p className="font-medium">Pressure Washer</p>
-                    <p className="text-muted-foreground text-sm">Listed on Apr 2, 2023</p>
-                  </div>
-                  <p className="font-medium text-green-600">$25/day</p>
-                </div>
-                <div className="flex justify-between items-center">
-                  <div>
-                    <p className="font-medium">Lawn Mower</p>
-                    <p className="text-muted-foreground text-sm">Listed on Apr 15, 2023</p>
-                  </div>
-                  <p className="font-medium text-green-600">$20/day</p>
-                </div>
+                ))}
               </div>
-            </CardContent>
-            <CardFooter>
-              <Link to="/my-tools" className="w-full">
-                <Button variant="outline" className="w-full">View All Tools</Button>
-              </Link>
-            </CardFooter>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Rental Requests</CardTitle>
-              <CardDescription>
-                Recent requests to rent your tools
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex justify-between items-center border-b pb-3">
-                  <div>
-                    <p className="font-medium">Electric Drill Set</p>
-                    <p className="text-muted-foreground text-sm">May 10 - May 12</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline">Decline</Button>
-                    <Button size="sm">Accept</Button>
-                  </div>
-                </div>
-                <div className="flex justify-between items-center border-b pb-3">
-                  <div>
-                    <p className="font-medium">Pressure Washer</p>
-                    <p className="text-muted-foreground text-sm">May 15 - May 16</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline">Decline</Button>
-                    <Button size="sm">Accept</Button>
-                  </div>
-                </div>
-                <div className="flex justify-between items-center">
-                  <div>
-                    <p className="font-medium">Lawn Mower</p>
-                    <p className="text-muted-foreground text-sm">May 20 - May 21</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline">Decline</Button>
-                    <Button size="sm">Accept</Button>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Link to="/rental-requests" className="w-full">
-                <Button variant="outline" className="w-full">View All Requests</Button>
-              </Link>
-            </CardFooter>
-          </Card>
-        </div>
+            ) : (
+              <p className="text-center py-4">You haven't listed any tools yet.</p>
+            )}
+          </CardContent>
+          <CardFooter>
+            {/* Footer content removed as requested */}
+          </CardFooter>
+        </Card>
       </div>
     </div>
   );

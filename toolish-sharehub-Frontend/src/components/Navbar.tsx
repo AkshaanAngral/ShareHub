@@ -2,6 +2,9 @@ import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useTheme } from "next-themes"; // or your theme context if not using next-themes
+
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -73,6 +76,7 @@ const Navbar = () => {
   const { isLoggedIn, user, logout } = useAuth();
   const { items } = useCart();
   const { conversations } = useChat() as unknown as { conversations: Conversation[] };
+  const { theme } = useTheme();
 
   const unreadMessages = conversations.reduce(
     (total, conversation) => total + (conversation.unreadCount || 0),
@@ -85,13 +89,14 @@ const Navbar = () => {
     <header className="sticky top-0 z-40 border-b bg-background">
       <div className="container mx-auto px-4 flex h-16 items-center justify-between">
         <div className="flex items-center gap-6">
-          <Link to="/" className="flex items-center gap-2 font-semibold">
-            <img
-              src="/logo.svg"
-              alt="ToolShare Logo"
-              className="h-8"
-            />
-          </Link>
+        <Link to="/" className="flex items-center gap-2 font-semibold">
+        <img
+         key={theme} 
+         src={theme === "dark" ? "/sharhub logo-dark.png" : "/sharhub logo.png"}
+         alt="ToolShare Logo"
+         className="h-12"
+          />
+        </Link>
 
           <nav className="hidden md:flex items-center gap-2">
             <NavLink href="/">Home</NavLink>

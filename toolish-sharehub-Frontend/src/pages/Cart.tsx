@@ -1,9 +1,3 @@
-declare global {
-  interface Window {
-    Razorpay: any;
-  }
-}
-
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -24,6 +18,12 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger
 } from "@/components/ui/alert-dialog";
+
+declare global {
+  interface Window {
+    Razorpay: any;
+  }
+}
 
 const Cart = () => {
   const { items, removeItem, clearCart, subtotal, serviceFee, total, address, updateAddress } = useCart();
@@ -305,7 +305,7 @@ const Cart = () => {
                                 {item.name}
                               </Link>
                             </h3>
-                            <span className="font-semibold">${item.total?.toFixed(2) || item.price.toFixed(2)}</span>
+                            <span className="font-semibold">₹{item.total?.toFixed(2) || item.price.toFixed(2)}</span>
                           </div>
                           <div className="text-sm text-muted-foreground mt-1 flex justify-between">
                             <div>
@@ -329,7 +329,12 @@ const Cart = () => {
                             <div className="flex items-center gap-2 mt-2 text-xs">
                               <User className="h-4 w-4" /> {item.owner.name}
                               <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" /> {item.owner.rating}
-                              <MessageCircle className="h-4 w-4 ml-4" /> <span>Contact via chat</span>
+                              <Link
+                              to={`/chat/${item.owner._id}`} // Replace with appropriate dynamic chat path
+                             className="text-blue-600 hover:underline cursor-pointer"
+                               >
+                             Contact via chat
+                              </Link>
                             </div>
                           )}
                         </div>
@@ -352,16 +357,16 @@ const Cart = () => {
                 <div className="space-y-3">
                   <div className="flex justify-between">
                     <span>Subtotal</span>
-                    <span>${subtotal.toFixed(2)}</span>
+                    <span>₹{subtotal.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Service Fee (10%)</span>
-                    <span>${serviceFee.toFixed(2)}</span>
+                    <span>₹{serviceFee.toFixed(2)}</span>
                   </div>
                   <Separator />
                   <div className="flex justify-between font-semibold">
                     <span>Total</span>
-                    <span>${total.toFixed(2)}</span>
+                    <span>₹{total.toFixed(2)}</span>
                   </div>
                 </div>
                 <div className="mt-4">

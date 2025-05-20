@@ -1,4 +1,3 @@
-// middleware/authMiddleware.js
 const jwt = require("jsonwebtoken");
 const User = require("../models/User.model");
 
@@ -28,8 +27,9 @@ const protect = async (req, res, next) => {
       return res.status(401).json({ message: "Not authorized, user not found" });
     }
 
-    // 5. Attach user to the request object for downstream middleware/controllers
+    // 5. Keep original user object but add chatId property for chat functionality
     req.user = user;
+    req.user.chatId = user.email; // Add email as chatId for chat system
 
     // 6. Proceed to next middleware/controller
     next();

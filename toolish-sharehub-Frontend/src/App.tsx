@@ -7,7 +7,6 @@ import Navbar from "./components/Navbar";
 import { Suspense, lazy } from "react";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
-import { SocketProvider } from "@/contexts/SocketContext";
 import { ChatProvider } from "@/contexts/ChatContext";
 import { ToolProvider } from "@/contexts/ToolContext";
 import PrivateRoute from "./components/PrivateRoute";
@@ -36,8 +35,7 @@ const App = () => {
       <TooltipProvider>
         <AuthProvider>
           <CartProvider>
-            <SocketProvider>
-              <ToolProvider>
+            <ToolProvider>
                 <ChatProvider>
                   <Toaster />
                   <Sonner />
@@ -46,8 +44,7 @@ const App = () => {
                   </Suspense>
                 </ChatProvider>
               </ToolProvider>
-            </SocketProvider>
-          </CartProvider>
+            </CartProvider>
         </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>

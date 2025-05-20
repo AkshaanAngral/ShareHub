@@ -128,7 +128,7 @@ const ToolDetail = () => {
                   <span className="ml-1 text-sm font-medium">{tool.rating} rating</span>
                 </div>
               </div>
-              <span className="text-2xl font-bold">${tool.price}/day</span>
+              <span className="text-2xl font-bold">₹{tool.price}/day</span>
             </div>
             <p className="text-muted-foreground mb-6">{tool.description}</p>
             <Tabs defaultValue="specifications">
@@ -238,14 +238,14 @@ const ToolDetail = () => {
               <div className="mb-4">
                 <label className="flex items-center space-x-2 cursor-pointer">
                   <input type="checkbox" checked={insurance} onChange={() => setInsurance(i => !i)} />
-                  <span>Add Damage Protection Insurance (+${((tool.price || 0) * 0.15).toFixed(2)}/day)</span>
+                  <span>Add Damage Protection Insurance (+₹{((tool.price || 0) * 0.15).toFixed(2)}/day)</span>
                 </label>
               </div>
               <div className="mb-2 text-sm">
                 <div className="flex justify-between"><span>Rental Duration:</span><span>{rentalDays} days</span></div>
-                <div className="flex justify-between"><span>Subtotal:</span><span>${subtotal.toFixed(2)}</span></div>
-                <div className="flex justify-between"><span>Service Fee (10%):</span><span>${serviceFee.toFixed(2)}</span></div>
-                <div className="flex justify-between font-bold"><span>Total:</span><span>${total.toFixed(2)}</span></div>
+                <div className="flex justify-between"><span>Subtotal:</span><span>₹{subtotal.toFixed(2)}</span></div>
+                <div className="flex justify-between"><span>Service Fee (10%):</span><span>₹{serviceFee.toFixed(2)}</span></div>
+                <div className="flex justify-between font-bold"><span>Total:</span><span>₹{total.toFixed(2)}</span></div>
               </div>
               <Button className="w-full mt-4" onClick={handleBookNow}>Book Now</Button>
             </CardContent>

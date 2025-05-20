@@ -132,7 +132,7 @@ const Tools = () => {
                 />
               </div>
               <span className="text-sm whitespace-nowrap">
-                ${priceRange[0]} - ${priceRange[1]}
+              ₹{priceRange[0]} - ₹{priceRange[1]}
               </span>
             </div>
           </div>
@@ -171,7 +171,7 @@ const Tools = () => {
                 <p className="text-muted-foreground mb-4">{tool.description}</p>
                 <div className="flex items-center justify-between">
                   <span className="text-xl font-semibold">
-                    ${tool.price} /day
+                  ₹{tool.price} /day
                   </span>
                 </div>
                 <div className="flex mt-4 gap-2">

@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -9,37 +8,95 @@ import {
   Send,
   ChevronLeft,
   User,
+  AlertCircle,
+  Loader2,
 } from "lucide-react";
-import { format } from "date-fns";
 import { useChat, Conversation } from "@/contexts/ChatContext";
 import { useAuth } from "@/contexts/AuthContext";
-import ChatConversationList, { ConversationUI } from "@/components/chat/ChatConversationList";
-import ChatMessageList from "@/components/chat/ChatMessageList";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import ChatConversationList, {
+  ConversationUI,
+} from "../components/chat/ChatConversationList";
+import ChatMessageList from "../components/chat/ChatMessageList";
+import { useLocation } from "react-router-dom";
 
 const Chat = () => {
-  const { conversations, currentConversation, sendMessage, setCurrentConversation } = useChat();
-  const { user } = useAuth();
+  const {
+    conversations,
+    currentConversation,
+    sendMessage,
+    setCurrentConversation,
+    fetchMessages,
+    fetchConversations,
+    isConnected,
+    isLoading,
+  } = useChat();
+  const { user, isLoggedIn } = useAuth();
   const [messageInput, setMessageInput] = useState("");
   const [activeTab, setActiveTab] = useState<string>("conversations");
-  const [messages, setMessages] = useState<any>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [isSending, setIsSending] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const previousConversationIdRef = useRef<string | null>(null);
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  // URL param for conversation
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  const conversationIdFromURL = params.get("conversation");
+
+  // Auto-select conversation from URL
+  useEffect(() => {
+    if (conversationIdFromURL && conversations.length > 0) {
+      const conv = conversations.find((c) => c._id === conversationIdFromURL);
+      if (conv) {
+        setCurrentConversation({
+          participantId: conv.participantId,
+          participantName: conv.participantName,
+          toolName: conv.toolName,
+        });
+        setActiveTab("messages");
+      }
+    }
+  }, [conversationIdFromURL, conversations, setCurrentConversation]);
+
+  // Handle sending messages
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!messageInput.trim() || !currentConversation) return;
-
-    sendMessage(currentConversation.participantId, messageInput);
-    setMessageInput("");
+    if (!messageInput.trim() || !currentConversation || isSending) return;
+    try {
+      setIsSending(true);
+      sendMessage(currentConversation.participantId, messageInput);
+      setMessageInput("");
+      setTimeout(() => {
+        scrollToBottom();
+      }, 100);
+    } catch (error) {
+      setError("Failed to send message. Please try again.");
+    } finally {
+      setIsSending(false);
+    }
   };
 
-  const handleConversationSelect = (conversation: ConversationUI) => {
+  // Select conversation
+  const handleConversationSelect = async (conversation: ConversationUI) => {
+    if (currentConversation?.participantId === conversation.participantId) return;
     setCurrentConversation({
-      participantId: conversation.id,
+      participantId: conversation.participantId,
       participantName: conversation.participantName,
       toolName: conversation.toolName,
     });
     setActiveTab("messages");
+    setError(null);
+    try {
+      await fetchMessages(conversation.id);
+    } catch {
+      setError("Failed to load messages. Please try again.");
+    }
+    setTimeout(() => {
+      scrollToBottom();
+    }, 100);
   };
 
   const handleBack = () => {
@@ -47,38 +104,100 @@ const Chat = () => {
     setActiveTab("conversations");
   };
 
-  const totalUnread = conversations.reduce((sum, conv) => sum + conv.unreadCount, 0);
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
 
-  // useEffect to update messages when currentConversation changes
-  useEffect(() => {
-    if (currentConversation) {
-      // Find the selected conversation and update the messages
-      const selectedConversation = conversations.find(
-        (conv) => conv._id === currentConversation.participantId
-      );
-      if (selectedConversation) {
-        setMessages(selectedConversation.messages);
-      } else {
-        setMessages([]);
-      }
-    } else {
-      setMessages([]);
-    }
+  // Total unread
+  const totalUnread = conversations.reduce(
+    (sum, conv) => sum + conv.unreadCount,
+    0
+  );
+
+  // Get messages for the currently selected conversation
+  const currentMessages = React.useMemo(() => {
+    if (!currentConversation) return [];
+    const selectedConversation = conversations.find(
+      (c) => c.participantId === currentConversation.participantId
+    );
+    return selectedConversation?.messages || [];
   }, [currentConversation, conversations]);
 
+  // Fetch conversations periodically
+  useEffect(() => {
+    if (isLoggedIn) {
+      fetchConversations();
+      const intervalId = setInterval(() => {
+        if (activeTab === "conversations") {
+          fetchConversations();
+        }
+      }, 30000);
+      return () => clearInterval(intervalId);
+    }
+  }, [fetchConversations, isLoggedIn, activeTab]);
+
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    if (currentMessages.length > 0) {
+      scrollToBottom();
+    }
+  }, [currentMessages.length]);
+
   // Convert Conversation type to ConversationUI type
-  const conversationsUI: ConversationUI[] = conversations.map((conversation) => ({
-    id: conversation._id,
-    participantName: conversation.participantName,
-    toolName: conversation.toolName,
-    lastMessage: conversation.messages.length > 0 ? conversation.messages[conversation.messages.length - 1].text : undefined,
-    lastMessageTime: conversation.messages.length > 0 ? new Date(conversation.messages[conversation.messages.length - 1].timestamp) : undefined,
-    unreadCount: conversation.unreadCount,
-  }));
+  const conversationsUI: ConversationUI[] = conversations.map(
+    (conversation: Conversation) => ({
+      id: conversation._id,
+      participantId: conversation.participantId,
+      participantName: conversation.participantName,
+      toolName: conversation.toolName,
+      lastMessage:
+        conversation.messages.length > 0
+          ? conversation.messages[conversation.messages.length - 1].text
+          : undefined,
+      lastMessageTime:
+        conversation.messages.length > 0
+          ? new Date(
+              conversation.messages[conversation.messages.length - 1].timestamp
+            )
+          : undefined,
+      unreadCount: conversation.unreadCount,
+    })
+  );
+
+  if (!isLoggedIn) {
+    return (
+      <div className="container mx-auto py-6 max-w-6xl">
+        <h1 className="text-3xl font-bold mb-6">Messages</h1>
+        <Card className="p-6">
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              You need to be logged in to access messages. Please log in to
+              continue.
+            </AlertDescription>
+          </Alert>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto py-6 max-w-6xl">
       <h1 className="text-3xl font-bold mb-6">Messages</h1>
+
+      {error && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {!isConnected && (
+        <Alert variant="default" className="mb-2">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>Connection lost. Reconnecting...</AlertDescription>
+        </Alert>
+      )}
 
       <Card className="border rounded-lg overflow-hidden">
         <Tabs
@@ -95,26 +214,33 @@ const Chat = () => {
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger
-              value="messages"
-              disabled={!currentConversation}
-            >
-              {currentConversation ? `Chat with ${currentConversation.participantName}` : "Messages"}
+            <TabsTrigger value="messages" disabled={!currentConversation}>
+              {currentConversation
+                ? `Chat with ${currentConversation.participantName}`
+                : "Messages"}
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="conversations" className="m-0">
+            {isLoading && (
+              <div className="flex justify-center items-center p-2">
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                <span className="ml-2">Loading...</span>
+              </div>
+            )}
             <ScrollArea className="h-[70vh]">
               <ChatConversationList
                 conversations={conversationsUI}
                 onSelect={handleConversationSelect}
               />
 
-              {conversations.length === 0 && (
+              {!isLoading && conversations.length === 0 && (
                 <div className="p-8 text-center text-muted-foreground">
                   <MessageCircle className="mx-auto h-12 w-12 mb-4 opacity-20" />
                   <p>No conversations yet</p>
-                  <p className="text-sm mt-2">Start chatting with a tool owner from their listing.</p>
+                  <p className="text-sm mt-2">
+                    Start chatting with a tool owner from their listing.
+                  </p>
                 </div>
               )}
             </ScrollArea>
@@ -129,6 +255,7 @@ const Chat = () => {
                     size="icon"
                     className="md:hidden"
                     onClick={handleBack}
+                    aria-label="Back to conversations"
                   >
                     <ChevronLeft />
                   </Button>
@@ -138,7 +265,9 @@ const Chat = () => {
                   </div>
 
                   <div>
-                    <p className="font-medium">{currentConversation.participantName}</p>
+                    <p className="font-medium">
+                      {currentConversation.participantName}
+                    </p>
                     {currentConversation.toolName && (
                       <p className="text-xs text-muted-foreground">
                         Re: {currentConversation.toolName}
@@ -148,20 +277,36 @@ const Chat = () => {
                 </div>
 
                 <ScrollArea className="flex-1 p-4">
+                  {isLoading && (
+                    <div className="flex justify-center my-4">
+                      <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                    </div>
+                  )}
+
                   <ChatMessageList
-                    messages={messages}
+                    messages={currentMessages.map((msg) => ({
+                      id: msg._id,
+                      senderId: msg.senderId,
+                      content: msg.text,
+                      timestamp: msg.timestamp,
+                      read: true,
+                    }))}
                     currentUserId={user?.id || ""}
                   />
 
-                  {messages.length === 0 && (
+                  {!isLoading && currentMessages.length === 0 && (
                     <div className="h-full flex items-center justify-center text-center text-muted-foreground p-4">
                       <div>
                         <MessageCircle className="mx-auto h-12 w-12 mb-4 opacity-20" />
                         <p>No messages yet</p>
-                        <p className="text-sm mt-2">Send a message to start the conversation.</p>
+                        <p className="text-sm mt-2">
+                          Send a message to start the conversation.
+                        </p>
                       </div>
                     </div>
                   )}
+
+                  <div ref={messagesEndRef} />
                 </ScrollArea>
 
                 <div className="p-4 border-t mt-auto">
@@ -171,9 +316,17 @@ const Chat = () => {
                       value={messageInput}
                       onChange={(e) => setMessageInput(e.target.value)}
                       className="flex-1"
+                      disabled={isSending || !isConnected}
                     />
-                    <Button type="submit" disabled={!messageInput.trim()}>
-                      <Send className="h-4 w-4 mr-2" />
+                    <Button
+                      type="submit"
+                      disabled={!messageInput.trim() || !isConnected || isSending}
+                    >
+                      {isSending ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Send className="h-4 w-4 mr-2" />
+                      )}
                       Send
                     </Button>
                   </form>

@@ -1,11 +1,12 @@
-import React, { useContext } from "react";
-import { ChatContext, Conversation } from "@/contexts/ChatContext";
+import React from "react";
+import { format, formatDistanceToNow } from "date-fns";
+import { User, Wrench } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { MessageCircle, Wrench } from "lucide-react";
-import { format, isToday, isYesterday } from "date-fns";
 
+// Updated ConversationUI interface to match the existing data structure
 export interface ConversationUI {
   id: string;
+  participantId: string;  // This needs to be required for compatibility
   participantName: string;
   toolName?: string;
   lastMessage?: string;
@@ -18,14 +19,28 @@ interface ChatConversationListProps {
   onSelect: (conversation: ConversationUI) => void;
 }
 
-const ChatConversationList = ({ conversations, onSelect }: ChatConversationListProps) => {
-  const formatTime = (date?: Date) => {
-    if (!date) return "";
+const ChatConversationList: React.FC<ChatConversationListProps> = ({
+  conversations,
+  onSelect,
+}) => {
+  // Sort conversations by last message time (newest first)
+  const sortedConversations = [...conversations].sort((a, b) => {
+    if (!a.lastMessageTime) return 1;
+    if (!b.lastMessageTime) return -1;
+    return b.lastMessageTime.getTime() - a.lastMessageTime.getTime();
+  });
 
-    if (isToday(date)) {
-      return format(date, "h:mm a");
-    } else if (isYesterday(date)) {
+  // Format date consistently with the rest of the application
+  const formatMessageDate = (date: Date) => {
+    const now = new Date();
+    const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) {
+      return formatDistanceToNow(date, { addSuffix: true });
+    } else if (diffDays === 1) {
       return "Yesterday";
+    } else if (diffDays < 7) {
+      return date.toLocaleDateString("en-US", { weekday: "short" });
     } else {
       return format(date, "MMM d");
     }
@@ -33,48 +48,61 @@ const ChatConversationList = ({ conversations, onSelect }: ChatConversationListP
 
   return (
     <div className="divide-y">
-      {conversations.map((conversation) => (
+      {sortedConversations.map((conversation) => (
         <div
           key={conversation.id}
-          className="p-4 cursor-pointer hover:bg-muted/50 transition-colors"
+          className="p-4 hover:bg-muted cursor-pointer transition-colors"
           onClick={() => onSelect(conversation)}
         >
-          <div className="flex justify-between items-start">
-            <div className="flex gap-3 items-center">
-              <div className="bg-primary/10 rounded-full p-3">
-                <MessageCircle className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <div className="font-medium">{conversation.participantName}</div>
-                {conversation.toolName && (
-                  <div className="flex items-center text-xs text-muted-foreground">
-                    <Wrench className="h-3 w-3 mr-1" />
-                    {conversation.toolName}
-                  </div>
+          <div className="flex items-start gap-3">
+            <div className="bg-primary/10 rounded-full p-2 mt-1">
+              {conversation.toolName ? (
+                <Wrench className="h-5 w-5 text-primary" />
+              ) : (
+                <User className="h-5 w-5 text-primary" />
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex justify-between items-start">
+                <h3 className="font-medium truncate">{conversation.participantName}</h3>
+                {conversation.lastMessageTime && (
+                  <span className="text-xs text-muted-foreground whitespace-nowrap ml-2">
+                    {formatMessageDate(conversation.lastMessageTime)}
+                  </span>
                 )}
-                {conversation.lastMessage && (
-                  <p className="text-sm text-muted-foreground line-clamp-1 mt-1">
+              </div>
+              
+              {conversation.toolName && (
+                <p className="text-xs text-muted-foreground mb-1">
+                  Re: {conversation.toolName}
+                </p>
+              )}
+              
+              <div className="flex items-center justify-between">
+                {conversation.lastMessage ? (
+                  <p className="text-sm text-muted-foreground truncate">
                     {conversation.lastMessage}
                   </p>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">No messages yet</p>
+                )}
+                
+                {conversation.unreadCount > 0 && (
+                  <Badge variant="destructive" className="ml-2">
+                    {conversation.unreadCount}
+                  </Badge>
                 )}
               </div>
-            </div>
-
-            <div className="flex flex-col items-end gap-1">
-              {conversation.lastMessageTime && (
-                <span className="text-xs text-muted-foreground">
-                  {formatTime(conversation.lastMessageTime)}
-                </span>
-              )}
-              {conversation.unreadCount > 0 && (
-                <Badge variant="destructive" className="px-2 py-0.5">
-                  {conversation.unreadCount}
-                </Badge>
-              )}
             </div>
           </div>
         </div>
       ))}
+
+      {sortedConversations.length === 0 && (
+        <div className="p-8 text-center text-muted-foreground">
+          <p>No conversations yet</p>
+        </div>
+      )}
     </div>
   );
 };

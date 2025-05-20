@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
+const ADMIN_URL = import.meta.env.VITE_ADMIN_PANEL_URL;
+
 
 interface Tool {
   id: string;
@@ -263,16 +265,17 @@ const Index = () => {
               <Link to="/tools/add">
                 List Your Tool
               </Link>
+              
             </Button>
             {isLoggedIn && isAdmin && (
-              <Button variant="outline" size="lg" asChild>
-                <Link to="/admin">
-                  <ShieldCheck className="mr-2 h-4 w-4" />
-                  Admin Panel
-                </Link>
-              </Button>
-            )}
-          </div>
+           <Button variant="outline" size="lg" asChild>
+           <a href={ADMIN_URL} target="_blank" rel="noopener noreferrer">
+            <ShieldCheck className="mr-2 h-4 w-4" />
+              Admin Panel
+               </a>
+             </Button>
+)}
+   </div>
         </div>
       </section>
     </div>
