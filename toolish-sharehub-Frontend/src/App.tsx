@@ -9,6 +9,8 @@ import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { ChatProvider } from "@/contexts/ChatContext";
 import { ToolProvider } from "@/contexts/ToolContext";
+import { SocketProvider } from "@/contexts/SocketContext";
+import { NotificationsProvider } from "@/contexts/NotificationsContext";
 import PrivateRoute from "./components/PrivateRoute";
 
 // Lazy loading the page components
@@ -26,6 +28,7 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 const SignIn = lazy(() => import("./pages/SignIn"));
 const Register = lazy(() => import("./pages/Register"));
 const LoadingPage = lazy(() => import("./pages/LoadingPage"));
+const Notifications = lazy(() => import("./pages/Notifications")); // Make sure this exists!
 
 const queryClient = new QueryClient();
 
@@ -34,17 +37,21 @@ const App = () => {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <AuthProvider>
-          <CartProvider>
-            <ToolProvider>
-                <ChatProvider>
-                  <Toaster />
-                  <Sonner />
-                  <Suspense fallback={<LoadingSpinner />}>
-                    <AppContent />
-                  </Suspense>
-                </ChatProvider>
-              </ToolProvider>
-            </CartProvider>
+          <SocketProvider>
+            <NotificationsProvider>
+              <CartProvider>
+                <ToolProvider>
+                  <ChatProvider>
+                    <Toaster />
+                    <Sonner />
+                    <Suspense fallback={<LoadingSpinner />}>
+                      <AppContent />
+                    </Suspense>
+                  </ChatProvider>
+                </ToolProvider>
+              </CartProvider>
+            </NotificationsProvider>
+          </SocketProvider>
         </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>
@@ -75,6 +82,11 @@ const AppContent = () => {
           <Route path="/chat" element={
             <PrivateRoute>
               <Chat />
+            </PrivateRoute>
+          } />
+          <Route path="/notifications" element={
+            <PrivateRoute>
+              <Notifications />
             </PrivateRoute>
           } />
           <Route path="/signin" element={

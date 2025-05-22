@@ -1,4 +1,3 @@
-// models/Cart.model.js
 const mongoose = require('mongoose');
 
 const CartSchema = new mongoose.Schema({
@@ -16,6 +15,19 @@ const CartSchema = new mongoose.Schema({
     quantity: {
       type: Number,
       default: 1
+    },
+    // Add these fields to match what's being set in the controller
+    price: {
+      type: Number,
+      required: true
+    },
+    rentalDays: {
+      type: Number,
+      default: 1
+    },
+    insurance: {
+      type: Boolean,
+      default: false
     }
   }],
   total: {

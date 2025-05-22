@@ -29,10 +29,12 @@ import {
   User,
   ChevronDown,
   MessageCircle,
+  Bell,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useCart } from "@/contexts/CartContext";
 import { useChat } from "@/contexts/ChatContext";
+import { useNotifications } from "@/contexts/NotificationsContext";
 
 interface NavLinkProps {
   href: string;
@@ -76,12 +78,14 @@ const Navbar = () => {
   const { isLoggedIn, user, logout } = useAuth();
   const { items } = useCart();
   const { conversations } = useChat() as unknown as { conversations: Conversation[] };
+  const { notifications } = useNotifications();
   const { theme } = useTheme();
 
   const unreadMessages = conversations.reduce(
     (total, conversation) => total + (conversation.unreadCount || 0),
     0
   );
+  const unreadNotifications = notifications?.filter(n => !n.read).length || 0;
   const totalItems = items.length;
   const isAdmin = user?.role === "admin";
 
@@ -128,6 +132,20 @@ const Navbar = () => {
                   </Button>
                 </Link>
 
+                <Link to="/notifications" className="mr-2 relative">
+                  <Button variant="ghost" size="sm">
+                    <Bell className="h-5 w-5" />
+                    {unreadNotifications > 0 && (
+                      <Badge
+                        variant="destructive"
+                        className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs"
+                      >
+                        {unreadNotifications}
+                      </Badge>
+                    )}
+                  </Button>
+                </Link>
+
                 <Link to="/cart" className="relative">
                   <Button variant="outline">
                     <ShoppingCart className="mr-2 h-4 w-4" />
@@ -165,6 +183,17 @@ const Navbar = () => {
                         {unreadMessages > 0 && (
                           <Badge variant="destructive" className="ml-2">
                             {unreadMessages}
+                          </Badge>
+                        )}
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/notifications" className="w-full cursor-pointer">
+                        
+                        Notifications
+                        {unreadNotifications > 0 && (
+                          <Badge variant="destructive" className="ml-2">
+                            {unreadNotifications}
                           </Badge>
                         )}
                       </Link>
@@ -253,6 +282,9 @@ const Navbar = () => {
                     </NavLink>
                     <NavLink href="/chat" isMobile onClick={() => setIsSheetOpen(false)}>
                       Messages {unreadMessages > 0 && `(${unreadMessages})`}
+                    </NavLink>
+                    <NavLink href="/notifications" isMobile onClick={() => setIsSheetOpen(false)}>
+                      Notifications {unreadNotifications > 0 && `(${unreadNotifications})`}
                     </NavLink>
                     <NavLink href="/cart" isMobile onClick={() => setIsSheetOpen(false)}>
                       Cart {totalItems > 0 && `(${totalItems})`}

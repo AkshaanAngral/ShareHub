@@ -13,11 +13,22 @@ import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input"; // Import Input component
+import { Label } from "@/components/ui/label"; // Import Label component
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger
 } from "@/components/ui/alert-dialog";
+
+// Define address interface to match our backend structure
+interface DeliveryAddress {
+  line1: string;
+  line2: string;
+  city: string;
+  state: string;
+  pincode: string;
+  country: string;
+}
 
 declare global {
   interface Window {
@@ -26,11 +37,34 @@ declare global {
 }
 
 const Cart = () => {
-  const { items, removeItem, clearCart, subtotal, serviceFee, total, address, updateAddress } = useCart();
+  const { items, removeItem, clearCart, subtotal, serviceFee, total } = useCart();
   const { isLoggedIn } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
+  
+  // Create structured address state
+  const [address, setAddress] = useState<DeliveryAddress>({
+    line1: "",
+    line2: "",
+    city: "",
+    state: "",
+    pincode: "",
+    country: ""
+  });
+
+  // Update address field handler
+  const updateAddressField = (field: keyof DeliveryAddress, value: string) => {
+    setAddress(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  // Check if address is valid
+  const isAddressValid = () => {
+    return address.line1 && address.city && address.state && address.pincode;
+  };
 
   // Ensure Razorpay script is loaded
   useEffect(() => {
@@ -69,10 +103,10 @@ const Cart = () => {
       return;
     }
 
-    if (!address || address.trim() === "") {
+    if (!isAddressValid()) {
       toast({
         title: "Address required",
-        description: "Please enter a delivery address before proceeding to payment.",
+        description: "Please enter a complete delivery address with Line 1, City, State and PIN code before proceeding to payment.",
         variant: "destructive"
       });
       return;
@@ -102,10 +136,10 @@ const Cart = () => {
       // Format request data properly
       const orderData = {
         items: items, // Send the entire items array
-        address: address,
+        address: address, // Now sending structured address object
         total: Number(total) // Ensure total is a number
-        
       };
+      
       console.log("Order data being sent:", orderData);
       const { data } = await axios.post(
         '/api/payment/create-order',
@@ -175,7 +209,7 @@ const Cart = () => {
           contact: ""
         },
         notes: {
-          address: address,
+          address: `${address.line1}, ${address.city}, ${address.state} ${address.pincode}`,
         },
         theme: { color: "#3399cc" },
         modal: {
@@ -369,13 +403,74 @@ const Cart = () => {
                     <span>₹{total.toFixed(2)}</span>
                   </div>
                 </div>
-                <div className="mt-4">
-                  <label className="block mb-1 font-medium">Delivery Address</label>
-                  <Textarea
-                    placeholder="Enter delivery address"
-                    value={address}
-                    onChange={e => updateAddress(e.target.value)}
-                  />
+                
+                {/* Updated structured address form */}
+                <div className="mt-4 space-y-3">
+                  <h3 className="font-medium">Delivery Address</h3>
+                  
+                  <div className="space-y-2">
+                    <div>
+                      <Label htmlFor="address-line1">Address Line 1 *</Label>
+                      <Input 
+                        id="address-line1"
+                        placeholder="Street address, P.O. box"
+                        value={address.line1}
+                        onChange={(e) => updateAddressField('line1', e.target.value)}
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="address-line2">Address Line 2</Label>
+                      <Input 
+                        id="address-line2"
+                        placeholder="Apartment, suite, unit, building, floor, etc."
+                        value={address.line2}
+                        onChange={(e) => updateAddressField('line2', e.target.value)}
+                      />
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label htmlFor="address-city">City *</Label>
+                        <Input 
+                          id="address-city"
+                          placeholder="City"
+                          value={address.city}
+                          onChange={(e) => updateAddressField('city', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="address-state">State *</Label>
+                        <Input 
+                          id="address-state"
+                          placeholder="State"
+                          value={address.state}
+                          onChange={(e) => updateAddressField('state', e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label htmlFor="address-pincode">PIN Code *</Label>
+                        <Input 
+                          id="address-pincode"
+                          placeholder="PIN code"
+                          value={address.pincode}
+                          onChange={(e) => updateAddressField('pincode', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="address-country">Country</Label>
+                        <Input 
+                          id="address-country"
+                          placeholder="Country"
+                          value={address.country || "India"}
+                          onChange={(e) => updateAddressField('country', e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
               <CardFooter>

@@ -5,5 +5,5 @@ const authenticateUser = require('../../middleware/authMiddleware'); // <-- noti
 
 router.post('/create-order', authenticateUser, paymentController.createOrder);
 router.post('/verify', authenticateUser, paymentController.verifyPayment);
-
+router.get('/my-payments', authenticateUser, paymentController.getMyPayments);
 module.exports = router;
