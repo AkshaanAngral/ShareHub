@@ -12,6 +12,7 @@ import { ToolProvider } from "@/contexts/ToolContext";
 import { SocketProvider } from "@/contexts/SocketContext";
 import { NotificationsProvider } from "@/contexts/NotificationsContext";
 import PrivateRoute from "./components/PrivateRoute";
+import Bookings from "./pages/Bookings";
 
 // Lazy loading the page components
 const Index = lazy(() => import("./pages/Index"));
@@ -76,7 +77,7 @@ const AppContent = () => {
           <Route path="/cart" element={<Cart />} />
           <Route path="/dashboard" element={
             <PrivateRoute>
-              <Dashboard />
+              <Dashboard userEmail={undefined} />
             </PrivateRoute>
           } />
           <Route path="/chat" element={
@@ -98,6 +99,11 @@ const AppContent = () => {
               <AdminPanel />
             </PrivateRoute>
           } />
+           <Route path="/bookings" element={
+                          <PrivateRoute>
+                            <Bookings />
+                          </PrivateRoute>
+                        } />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>

@@ -46,6 +46,8 @@ app.use("/api", apiRoutes);
 const dashboardRoutes = require("./routes/api/dashboard.route");
 app.use("/api/dashboard", dashboardRoutes);
 
+const bookingRoutes = require("./routes/api/Booking.route");
+app.use("/api/bookings", bookingRoutes);
 // --- SOCKET.IO SETUP ---
 const io = new Server(server, {
   cors: {

@@ -31,6 +31,8 @@ import {
   MessageCircle,
   Bell,
 } from "lucide-react";
+import { ArrowRight, Wrench, AlertCircle, Calendar, DollarSign, Settings, Package } from "lucide-react";
+
 import { Badge } from "@/components/ui/badge";
 import { useCart } from "@/contexts/CartContext";
 import { useChat } from "@/contexts/ChatContext";
@@ -95,11 +97,11 @@ const Navbar = () => {
         <div className="flex items-center gap-6">
         <Link to="/" className="flex items-center gap-2 font-semibold">
         <img
-         key={theme} 
-         src={theme === "dark" ? "/sharhub logo-dark.png" : "/sharhub logo.png"}
-         alt="ToolShare Logo"
-         className="h-12"
-          />
+  key={theme} 
+  src={theme === "dark" ? "/sharhub logo-dark.png?v=dark" : "/sharhub logo.png?v=light"}
+  alt="ToolShare Logo"
+  className="h-12"
+/>
         </Link>
 
           <nav className="hidden md:flex items-center gap-2">

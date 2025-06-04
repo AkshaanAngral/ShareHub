@@ -38,7 +38,7 @@ const categories = [
 const Tools = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [category, setCategory] = useState("All Categories");
-  const [priceRange, setPriceRange] = useState<[number, number]>([0, 150]);
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 10000]);
   const [toolsList, setToolsList] = useState<Tool[]>([]);
 
   const { items } = useCart(); // Use items for cart badge
@@ -126,7 +126,7 @@ const Tools = () => {
                 <Slider
                   value={priceRange}
                   min={0}
-                  max={150}
+                  max={10000}
                   step={5}
                   onValueChange={(value) => setPriceRange(value as [number, number])}
                 />
@@ -199,7 +199,7 @@ const Tools = () => {
               onClick={() => {
                 setSearchTerm("");
                 setCategory("All Categories");
-                setPriceRange([0, 150]);
+                setPriceRange([0, 10000]);
               }}
             >
               Clear Filters
