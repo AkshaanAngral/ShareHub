@@ -148,11 +148,17 @@ Visit the app at: [http://localhost:5173](http://localhost:5173)
 
 ## 📷 Screenshots
 
-| Login Page              | Tool Listing            | Booking Interface         |
-| ----------------------- | ----------------------- | ------------------------- |
-| ![](./assets/login.png) | ![](./assets/tools.png) | ![](./assets/booking.png) |
+| Dashboard/Home | Login Page | Tool Listing |
+|----------------|------------|--------------|
+| ![](./assets/banner.png) | ![](./assets/login.png) | ![](./assets/tools.png) |
 
-> Add your screenshots to an `assets/` folder and replace these filenames accordingly.
+| Booking Interface | Admin Panel | Chat Interface |
+|-------------------|-------------|----------------|
+| ![](./assets/booking.png) | ![](./assets/admin.png) | ![](./assets/chat.png) |
+
+| Notification Center |
+|---------------------|
+| ![](./assets/notifications.png) |
 
 ---
 
